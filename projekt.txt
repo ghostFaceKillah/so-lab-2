@@ -1,0 +1,34 @@
+===== Wstęp =====
+3 rodzaje aktorów
+
+* 1 Serwer
+* M Komisji, gdzie 0 < M < 10000
+* 1 Raport
+
+I typ połączenia
+Serwer <---ipc_msg---> Komisja
+
+II typ połączenia
+Serwer <---ipc_msg---> Raport
+
+
+===== I prototyp systemu: =====
+Pytania i zagadnienia:
+* ile ma być kolejek?
+* Zrozumieć mechanizm kolejek
+
+
+Funkcjonalności serwera
+1) Tworzy odpowiednią liczbę kolejek
+2) Odbiera komunikaty od klientów
+3) Nadaje potwierdzające komunikaty do klientów
+
+Funkcjonalność klienta
+1) Nadaje komunikaty
+2) Odbiera komunikat potwierdzający od serwera
+
+
+===== Dalsze funkcjonalności w kolejnych iteracjach =====
+Serwer:
+* obsługa SIGKILL (zwolnić zasoby systemowe) itp itd
+

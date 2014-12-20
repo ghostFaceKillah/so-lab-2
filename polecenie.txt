@@ -1,0 +1,157 @@
+ZADANIE NR 2
+
+==== Wprowadzenie ====
+
+Treścią zadania jest system służący do liczenia głosów w wyborach :), przy czym
+upraszczamy rzeczywistość i obsługujemy tylko jeden rodzaj wyborów i jeden
+globalny zbiór kandydatów (bez podziału na okręgi wyborcze itp.).
+
+Do napisania są w sumie trzy programy: serwer, komisja i raport.  
+
+W wyborach startuje L * K kandydatów umieszczonych na 0 < L < 100 listach
+numerowanych od 1 do L. Na każdej liście znajduje się 0 < K < 100 kandydatów
+numerowanych od 1 do K. Para (numer listy, numer kandydata) identyfikuje
+kandydata.
+
+Wyborca ma wskazać jednego kandydata spośród wszystkich.
+
+Jest 0 < M < 10000 lokali wyborczych numerowanych od 1 do M i odpowiadających
+im komisji. Komisja sumuje głosy oddane na poszczególnych kandydatów oraz
+liczy głosy nieważne i korzystając z programu komisja wysyła te dane na
+serwer.  serwer sumuje głosy oddane na poszczególnych kandydatów i umożliwia
+pobranie raportu z bieżącymi wynikami.  Program raport pozwala pobrać z
+serwera częściowe lub końcowe wyniki wyborów.
+
+==== Technologia ==== 
+
+Komunikacja między klientami a serwerem odbywać się może wyłącznie przy pomocy
+kolejek komunikatów IPC Systemu V. W rozwiązaniu należy użyć stałej liczby
+kolejek.
+
+Dokładny format komunikatów do ustalenia przez studenta. Zalecam zdefiniowanie
+odpowiednich typów oraz kluczy kolejek w pliku nagłówkowym włączanym do
+wszystkich programów.
+
+Do realizacji wielowątkowości na serwerze należy użyć biblioteki pthreads.
+Synchronizację między wątkami należy zapewnić wyłącznie za pomocą mechanizmów
+pthreads takich jak mutexy, zmienne warunkowe lub blokady rwlock.
+
+Dla potrzeb oceny poprawności rozwiązania można przyjąć, że kolejki komunikatów
+oraz mechanizmy pthreads są sprawiedliwe.
+
+Można założyć, a nie trzeba sprawdzać, że parametry wywołania programów oraz
+dane wejściowe są poprawne, a także że klienci nie będą niespodziewanie
+przerywani.
+
+Serwer
+
+Serwer uruchamia się poleceniem
+
+./serwer L K M
+przekazując wartość parametrów opisanych powyżej.
+
+Serwer tworzy kolejki potrzebne do komunikacji i oczekuje na zgłoszenia klientów.
+
+Obsługą klientów obu rodzajów mają zajmować się wątki tworzone i usuwane
+dynamicznie przez serwer, dla każdego klienta jeden wątek, ten sam przez cały
+czas komunikacji z danym klientem. Jedynie pierwsze komunikaty przysyłane przez
+poszczególnych klientów mogą być odbierane przez jeden wspólny wątek.
+
+Jednocześnie może trwać komunikacja z wieloma klientami. Należy przy tym
+zapewnić adekwatną synchronizację i ochronę danych na poziomie pojedynczych
+wartości przechowywanych przez serwer. Proszę jednak zwrócić uwagę na
+generowanie raportu, które wymaga dostępu do spójnego obrazu danych.
+
+Praca serwera może zostać przerwana sygnałem SIGINT (Ctrl+C). W takiej sytuacji
+serwer powinien zwolnić zajmowane zasoby systemowe (w szczególności kolejki
+IPC) i zakończyć się. Klienci także mają się w takiej sytuacji zakończyć, mogą
+w sposób "wyjątkowy".  W zależności od implementacji dopuszczalne jest
+natychmiastowe zakończenie serwera lub obsłużenie bieżących komunikatów; serwer
+nie powinien natomiast odbierać już nowych komunikatów.
+
+Serwer powinien działać potencjalnie dowolnie długo i być w stanie obsłużyć
+nieograniczenie wielu klientów w czasie swojego życia.
+
+Klienci i operacje
+
+Komisja
+
+Program komisja uruchamia się poleceniem
+
+./komisja m
+gdzie 0 < m ≤ M oznacza numer komisji.
+
+Program ze swojego standardowego wejścia czyta:
+
+jeden wiersz, w którym znajdują się 2 liczby całkowite 0 < i < 10000 oraz 0 ≤ j
+< 10000, rozdzielone pojedynczą spacją, które oznaczają: i – liczbę osób
+uprawnionych do głosowania w danym lokalu, j – liczbę osób, które oddały głos w
+danym lokalu (łącznie z nieważnymi); pewną nieznaną z góry liczbę w wierszy
+(nie więcej niż L * K), w których znajdują się 3 dodatnie liczby całkowite: l k
+n oznaczające l – numer listy, k – numer kandydata na liście; n < 10000 –
+liczbę głosów oddanych na danego kandydata w danym lokalu.  Można założyć, że
+pary (l, k) są unikalne, nie można jednak założyć niczego o ich kolejności.
+Suma wszystkich głosów (∑n) oznacza jednocześnie liczbę głosów ważnych.
+
+Program używając kolejek IPC powinien wysłać te dane na serwer. Po zakończeniu
+wejścia (koniec pliku wejściowego lub Ctrl+D w konsoli) program powinien wysłać
+komunikat informujący o zakończeniu danych, a serwer powinien odpowiedzieć
+potwierdzeniem zawierającym co najmniej liczby w oraz ∑n obliczone przez
+serwer. Na zakończenie program komisja powinien wypisać podsumowanie:
+
+Przetworzonych wpisów: w
+Uprawnionych do głosowania: i
+Głosów ważnych: ∑n
+Głosów nieważnych: j - ∑n
+Frekwencja w lokalu: (j / i) * 100%
+
+Serwer powinien kontrolować które komisje przysłały już swoje wyniki. Dla danej
+komisji m dopuszczalne jest tylko jednorazowe połączenie w celu przesłania
+wyników. Jeśli serwer już odebrał lub jest w trakcie odbierania wyników dla
+danego m, próby połączenia kolejnego programu komisja z takim samym m powinny
+zostać odrzucone (można w tym celu użyć odpowiedniego komunikatu), a program
+komisja powinien się zakończyć z komunikatem Odmowa dostępu.
+
+Raport
+
+Program raport uruchamia się poleceniem
+
+./raport
+lub
+./raport l
+gdzie 0 < l ≤ L jest opcjonalnym parametrem oznaczającym numer listy.
+
+Klient wysyła na serwer odpowiednie zapytanie i odbiera dane pozwalające mu na
+wypisanie raportu. Na standardowe wyjście wypisywany jest raport o następującym
+formacie:
+
+Przetworzonych komisji: x / M
+Uprawnionych do głosowania: y
+Głosów ważnych: z
+Głosów nieważnych: v
+Frekwencja : (z + v) / y * 100%
+Wyniki poszczególnych list:
+
+a następnie wiersze z wynikami poszczególnych list zawierające liczby
+rozdzielone pojedynczymi spacjami:
+
+numer listy
+suma liczby głosów na tę listę
+K liczb z sumą głosów na poszczególnych kandydatów w kolejności od 1 do K (także zera).
+W przypadku podania parametru l wypisywany jest tylko jeden wiersz z wynikami
+dla jednej listy. W przypadku braku parametru – L wierszy z wynikami list od 1
+do L.
+
+Statystyki na początku raportu odnoszą się zawsze do wyników zbiorczych.
+
+Wyniki wypisywane w raporcie muszą być spójnym obrazem danych uwzględniającym pewną liczbę kompletnych wyników nadesłanych przez komisje, przy czym klienci jednego rodzaju nie mogą zagłodzić klientów drugiego rodzaju (w ścisłym sensie w jedną stronę zagłodzenie nam nie grozi, gdyż komisji jest skończona liczba, ale chodzi o to, by żądania nie czekały dłużej niż jest to konieczne).
+
+Informacje organizacyjne
+
+Rozwiązania (tylko Makefile, pliki źródłowe i opcjonalny plik z opisem) należy
+nadsyłać za pomocą skryptu submit na adres: solab@mimuw.edu.pl w terminie do 22
+grudnia, 23:59
+
+W przypadku wątpliwości można zadać pytanie autorowi zadania P. Czarnikowi.
+Przed zadaniem pytania warto sprawdzić, czy odpowiedź na nie nie pojawiła się
+na liście często zadawanych pytań.
