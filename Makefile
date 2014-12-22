@@ -54,4 +54,4 @@ $(ALL) : % : %.o $(OBJECTS)			# konsolidacja
 -include $(DEPENDS)				# dolaczenie submakefiles
 
 clean:
-	-rm -f *.o $(ALL) $(ALLOBJECTS) $(DEPENDS)
+	-rm -f *.o .*.swp $(ALL) $(ALLOBJECTS) $(DEPENDS)
