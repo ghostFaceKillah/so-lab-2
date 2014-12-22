@@ -13,7 +13,7 @@
 
 #define MAX_LIST        10
 #define MAX_CANDIDATES  10
-#define CLIENTS_LIMIT   2
+#define CLIENTS_LIMIT   10
 #define MAX_COMMITTEES  100
 
 /* TO-DOs
@@ -23,7 +23,6 @@
  *  -> remove debug codez
  *  -> improve style? indents, line length
  *  -> magic constants here and there
- *  -> komisja ma wypisywać rzeczy na stdout
  */
 
 /* globals */
@@ -39,7 +38,7 @@ int committees_processed;
 pthread_mutex_t data_control;
 DataAccessControl do_not_let_new_in;
 DataAccessControl how_many_clients_in;
-pthread_attr_t attr;
+pthread_attr_t attr[CLIENTS_LIMIT];
 
 void exit_gracefully(int sig) {
     if (msgctl(in_qid, IPC_RMID, 0))
@@ -55,7 +54,9 @@ void exit_gracefully(int sig) {
     pthread_cond_destroy(&do_not_let_new_in.cnd);
     pthread_mutex_destroy(&how_many_clients_in.mtx);
     pthread_cond_destroy(&how_many_clients_in.cnd);
-    pthread_attr_destroy(&attr);
+    int i;
+    for (i = 0; i < CLIENTS_LIMIT; i++)
+        pthread_attr_destroy(&attr[i]);
 }
 
 void *serve_committee(void *d) {
@@ -85,9 +86,10 @@ void *serve_committee(void *d) {
         give_access = 1;
         committee_reported[com_no]++;
         committees_processed++;
+        printf("WA 1 val = %d\n", committees_processed);
     };
     pthread_mutex_unlock(&data_control);
-
+    
     mesg.mesg_type = (long) com_no;
     if (give_access == 0) {
         /* deny access */
@@ -172,6 +174,7 @@ void *serve_committee(void *d) {
     how_many_clients_in.val--;
     pthread_cond_signal(&how_many_clients_in.cnd);
     pthread_mutex_unlock(&how_many_clients_in.mtx);
+    printf("reporting in committee %d coms processed \n", committees_processed);
 
     if (DEBUG)
         printf("exiting handler for committee no %d\n",  com_no);
@@ -202,6 +205,7 @@ void *serve_report(void *data) {
     /* no need for mutex - mutual exclusion already ensured */
 
     /* send no of processed committees data */
+    printf("reporting %d coms processed \n", committees_processed);
     mesg.mesg_type = 3;
     mesg.data[0] = committees_processed;
     mesg.data[1] = MAX_COMMITTEES;
@@ -359,11 +363,12 @@ int main()
             pass[0] = mesg.mesg_type;
             pass[1] = how_many_clients_in.val;
             pthread_mutex_unlock(&how_many_clients_in.mtx);
-            if ((err = pthread_attr_init(&attr)) != 0)
+            if ((err = pthread_attr_init(&attr[how_many_clients_in.val - 1])) != 0)
                 syserr("pthread_attr_init in creating committee handler");
            
             if ((err = pthread_create(&threads[how_many_clients_in.val - 1], 
-                                      &attr, serve_committee, 
+                                      &attr[how_many_clients_in.val - 1],
+                                      serve_committee, 
                                       (void *)pass)) != 0)
                    syserr("pthread_create in creating committee handler");
         } else if (mesg.data[0] == 2) {
@@ -396,11 +401,12 @@ int main()
              * always finite because do_not_let_new_in is not allowing 
              * new committee handlers  */
             pthread_mutex_unlock(&how_many_clients_in.mtx);
-            if ((err = pthread_attr_init(&attr)) != 0)
+            if ((err = pthread_attr_init(&attr[how_many_clients_in.val - 1])) != 0)
                 syserr("pthread_attr_init in creating report handler");
            
            if ((err = pthread_create(&threads[0], 
-                                     &attr, serve_report, (void*)0)) != 0)
+                                     &attr[how_many_clients_in.val - 1],
+                                     serve_report, (void*)0)) != 0)
                   syserr("pthread_create in creating report handler");
         }
     }
