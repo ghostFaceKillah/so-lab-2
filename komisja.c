@@ -17,6 +17,8 @@ int main(int argc, char *argv[])
     int nr_komisji;
     int processed_lines = 0;
     int voted_local = 0;
+    int entitled_to_vote = 0;
+    int voted_local_with_invalid = 0;
     if (argc != 2)
         syserr("komisja: wrong number of arguments specified");
     nr_komisji = atoi(argv[1]);
@@ -51,6 +53,8 @@ int main(int argc, char *argv[])
         scanf("%d %d\n", &mesg.data[1], &mesg.data[2]);
         if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
             syserr("msgsnd in komisja");
+        entitled_to_vote = mesg.data[1];
+        voted_local_with_invalid = mesg.data[2];
         /* wait for confirmation */
         if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.data), nr_komisji, 0)) <= 0)
                             syserr("msgrcv in server");
@@ -85,11 +89,17 @@ int main(int argc, char *argv[])
         assert(mesg.data[1] == processed_lines);
         assert(mesg.data[2] == voted_local);
         /* write summary to stdout */
-        printf("data confirmed to be sent ok\n");
+        printf("Przetworzonych wpisów: %d\n", processed_lines);
+        printf("Uprawnionych do głosowania: %d\n", entitled_to_vote);
+        printf("Głosów ważnych: %d\n", voted_local);
+        printf("Głosów nieważnych: %d\n", voted_local_with_invalid - voted_local);
+        float turnout = (float) voted_local_with_invalid / (float) entitled_to_vote;
+        turnout *= 100;
+        printf("Frekwencja w lokalu: %f%% \n", turnout);
         fflush(stdout);
     };
 
-    /* free resources */
+    /* free resources ?? */
 
     return 0;
 }

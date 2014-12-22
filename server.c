@@ -17,7 +17,7 @@
 #define MAX_COMMITTEES  100
 
 /* TO-DOs
- *  -> make error checking for pthread functions
+ *  -> make error checking for pthread functions (use better syserr lib)
  *  -> attr should be array!!
  *  -> test, test, test
  *  -> remove debug codez
@@ -59,6 +59,7 @@ void exit_gracefully(int sig) {
 }
 
 void *serve_committee(void *d) {
+    /* init data */
     Mesg mesg;
     int l;
     long *data_got_raw =(long*) d;
@@ -106,7 +107,7 @@ void *serve_committee(void *d) {
         if (DEBUG)
             printf("access granted to %d in thread %d \n", com_no, thread_no);
 
-        /* receive special first data:
+        /* receive special first data packet:
          *     no of people allowed to vote
          *     no of people who actually voted */
         if ((l = msgrcv(comin_qid, &mesg, sizeof(mesg.data), 
@@ -164,7 +165,6 @@ void *serve_committee(void *d) {
         }
     };
     /* push summary data to main memory ??  */
-    
 
     /* end protocol */
     /* decrease number of clients handled */
@@ -185,16 +185,6 @@ int sum_list(int l_no) {
         sum += result_table[l_no][i];
     return sum;
 };
-
-void debug_print() {
-    int i, j;
-    for (j = 0; j < MAX_LIST; j++) {
-        for (i = 0; i < MAX_CANDIDATES; i++) 
-            printf("%d ", result_table[j][i]);
-        printf("\n");
-    }
-    fflush(stdout);
-}
 
 void *serve_report(void *data) {
     if (DEBUG)
@@ -235,6 +225,7 @@ void *serve_report(void *data) {
     if (DEBUG)
         printf("got need for list no %d\n", req_list_no);
 
+    /* send needed list data */
     for (list_no = 1; list_no < MAX_LIST; list_no++ ) {
         if ((req_list_no == 0) || (req_list_no == list_no))  {
             /* send list_no and sum of list's votes*/
@@ -293,9 +284,6 @@ void *serve_report(void *data) {
     do_not_let_new_in.val = 0;
     pthread_cond_signal(&do_not_let_new_in.cnd);
     pthread_mutex_unlock(&do_not_let_new_in.mtx);
-
-    if (DEBUG)
-        printf("exiting handler for report \n");
     pthread_exit(NULL);
 }
 
@@ -321,6 +309,8 @@ int main()
     if (signal(SIGINT, exit_gracefully) == SIG_ERR)
         syserr("procedure signal: in setting up process exiting procedure");
 
+    /* for nicely cleaning up after abort messages, as assert etc. may
+     * be used for testing */
     if (signal(SIGABRT, exit_gracefully) == SIG_ERR)
         syserr("procedure signal: in setting up process exiting procedure");
 

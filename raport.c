@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
     float turnout = (float) z + (float) v;
     turnout /= (float) y;
     turnout *= 100;
-    printf("Frekwencja: %f\n", turnout);
+    printf("Frekwencja: %f%%\n", turnout);
     printf("Wyniki poszczególnych list: \n");
 
     /* send type of report needed */
