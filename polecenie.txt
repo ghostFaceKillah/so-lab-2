@@ -83,21 +83,34 @@ gdzie 0 < m ≤ M oznacza numer komisji.
 
 Program ze swojego standardowego wejścia czyta:
 
-jeden wiersz, w którym znajdują się 2 liczby całkowite 0 < i < 10000 oraz 0 ≤ j
-< 10000, rozdzielone pojedynczą spacją, które oznaczają: i – liczbę osób
-uprawnionych do głosowania w danym lokalu, j – liczbę osób, które oddały głos w
-danym lokalu (łącznie z nieważnymi); pewną nieznaną z góry liczbę w wierszy
-(nie więcej niż L * K), w których znajdują się 3 dodatnie liczby całkowite: l k
-n oznaczające l – numer listy, k – numer kandydata na liście; n < 10000 –
-liczbę głosów oddanych na danego kandydata w danym lokalu.  Można założyć, że
-pary (l, k) są unikalne, nie można jednak założyć niczego o ich kolejności.
-Suma wszystkich głosów (∑n) oznacza jednocześnie liczbę głosów ważnych.
+* jeden wiersz, w którym znajdują się 2 liczby całkowite
+        0 < i < 10000 oraz 0 ≤ j < 10000,
+        rozdzielone pojedynczą spacją, które oznaczają:
+            i – liczbę osób uprawnionych do głosowania w danym lokalu,
+            j – liczbę osób, które oddały głos w danym lokalu
+               (łącznie z nieważnymi);
+
+ * pewną nieznaną z góry liczbę w wierszy (nie więcej niż L * K), w
+   których znajdują się 3 dodatnie liczby całkowite: l k n
+   oznaczające:
+        l – numer listy,
+        k – numer kandydata na liście;
+        n < 10000 – liczbę głosów oddanych na danego kandydata w danym lokalu.
+
+Można założyć, że pary (l, k) są unikalne, nie można jednak założyć niczego o
+ich kolejności.  Suma wszystkich głosów (∑n) oznacza jednocześnie liczbę
+głosów ważnych.
 
 Program używając kolejek IPC powinien wysłać te dane na serwer. Po zakończeniu
-wejścia (koniec pliku wejściowego lub Ctrl+D w konsoli) program powinien wysłać
-komunikat informujący o zakończeniu danych, a serwer powinien odpowiedzieć
-potwierdzeniem zawierającym co najmniej liczby w oraz ∑n obliczone przez
-serwer. Na zakończenie program komisja powinien wypisać podsumowanie:
+wejścia (koniec pliku wejściowego lub Ctrl+D w konsoli) program powinien
+wysłać komunikat informujący o zakończeniu danych, a serwer powinien
+odpowiedzieć potwierdzeniem zawierającym co najmniej liczby:
+
+   *  w - przetworzonych wpisów
+   *  ∑n - suma oddanych głosów
+
+obliczone przez serwer. Na zakończenie program komisja powinien wypisać
+podsumowanie:
 
 Przetworzonych wpisów: w
 Uprawnionych do głosowania: i
@@ -135,16 +148,21 @@ Wyniki poszczególnych list:
 a następnie wiersze z wynikami poszczególnych list zawierające liczby
 rozdzielone pojedynczymi spacjami:
 
-numer listy
-suma liczby głosów na tę listę
+numer listy <spacja>
+suma liczby głosów na tę listę <spacja>
 K liczb z sumą głosów na poszczególnych kandydatów w kolejności od 1 do K (także zera).
+
 W przypadku podania parametru l wypisywany jest tylko jeden wiersz z wynikami
 dla jednej listy. W przypadku braku parametru – L wierszy z wynikami list od 1
 do L.
 
 Statystyki na początku raportu odnoszą się zawsze do wyników zbiorczych.
 
-Wyniki wypisywane w raporcie muszą być spójnym obrazem danych uwzględniającym pewną liczbę kompletnych wyników nadesłanych przez komisje, przy czym klienci jednego rodzaju nie mogą zagłodzić klientów drugiego rodzaju (w ścisłym sensie w jedną stronę zagłodzenie nam nie grozi, gdyż komisji jest skończona liczba, ale chodzi o to, by żądania nie czekały dłużej niż jest to konieczne).
+Wyniki wypisywane w raporcie muszą być spójnym obrazem danych uwzględniającym
+pewną liczbę kompletnych wyników nadesłanych przez komisje, przy czym klienci
+jednego rodzaju nie mogą zagłodzić klientów drugiego rodzaju (w ścisłym sensie
+w jedną stronę zagłodzenie nam nie grozi, gdyż komisji jest skończona liczba,
+ale chodzi o to, by żądania nie czekały dłużej niż jest to konieczne).
 
 Informacje organizacyjne
 

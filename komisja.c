@@ -1,11 +1,12 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include "mesg.h"
 #include "err.h"
+#include "mesg.h"
 
 int main(int argc, char *argv[]) 
 {
@@ -14,6 +15,8 @@ int main(int argc, char *argv[])
     int msg_qid, comout_qid, send_qid;
     int l;
     int nr_komisji;
+    int processed_lines = 0;
+    int voted_local = 0;
     if (argc != 2)
         syserr("komisja: wrong number of arguments specified");
     nr_komisji = atoi(argv[1]);
@@ -25,62 +28,65 @@ int main(int argc, char *argv[])
         syserr("msgget in komisja committee out q");
     if ((send_qid = msgget(COMMITTEE_Q_IN, 0)) == -1)
         syserr("msgget in komisja committee out q");
-    if (DEBUG)
-        printf("in komisja no %d got msg_qid, it is %d\n", nr_komisji, msg_qid);
 
     /* requesting handler creation from server by sending our commision number
      * by message type */
     mesg.mesg_type = nr_komisji; 
-    mesg.mesg_data[0] = 1;  
-    if (DEBUG)
-        printf("requesting handler from server \n");
-    if (msgsnd(msg_qid, (char *) &mesg, sizeof(mesg.mesg_data), 0) != 0)
+    mesg.data[0] = 1;  
+    if (msgsnd(msg_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
         syserr("msgsnd in komisja");
 
-    if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.mesg_data), nr_komisji, 0)) <= 0)
+    if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.data), nr_komisji, 0)) <= 0)
                         syserr("msgrcv in server");
 
-    if (mesg.mesg_data[0] == 0) {
+    if (mesg.data[0] == 0) {
         /* handler denied */
         syserr("access denied");
         exit(5);
     } else {
         /* handler granted */
-        mesg.mesg_data[0] = 1;
+        mesg.data[0] = 1;
 
         /* send data begin:  */
-        scanf("%d %d\n", &mesg.mesg_data[1], &mesg.mesg_data[2]);
-        if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.mesg_data), 0) != 0)
+        scanf("%d %d\n", &mesg.data[1], &mesg.data[2]);
+        if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
             syserr("msgsnd in komisja");
         /* wait for confirmation */
-        if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.mesg_data), nr_komisji, 0)) <= 0)
+        if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.data), nr_komisji, 0)) <= 0)
                             syserr("msgrcv in server");
-        printf("received confirmation\n");
         /* send general data 
         * while you are getting info from stdin */
         while (!feof(stdin) && scanf("%d %d %d\n",
-                                             &mesg.mesg_data[1],
-                                             &mesg.mesg_data[2],
-                                             &mesg.mesg_data[3])) {
+                                             &mesg.data[1],
+                                             &mesg.data[2],
+                                             &mesg.data[3])) {
+            /* accumulate data */
+            voted_local += mesg.data[3];
+            processed_lines++;
             /* send further data  */
-            if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.mesg_data), 0) != 0)
+            if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
                 syserr("msgsnd in komisja");
             /* wait for confirmation */
-            if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.mesg_data),
+            if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.data),
                             nr_komisji, 0)) <= 0)
                                 syserr("msgrcv in server");
 
         }
 
         /* send final data  */
-        mesg.mesg_data[0] = 0;
-        if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.mesg_data), 0) != 0)
+        mesg.data[0] = 0;
+        if (msgsnd(send_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
             syserr("msgsnd in komisja");
         /* wait for confirmation with data summary  */
-        if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.mesg_data), nr_komisji, 0)) <= 0)
+        if ((l = msgrcv(comout_qid, &mesg, sizeof(mesg.data), nr_komisji, 0)) <= 0)
                             syserr("msgrcv in server");
         /* check for correctness */
+        assert(mesg.data[0] == 0);
+        assert(mesg.data[1] == processed_lines);
+        assert(mesg.data[2] == voted_local);
         /* write summary to stdout */
+        printf("data confirmed to be sent ok\n");
+        fflush(stdout);
     };
 
     /* free resources */

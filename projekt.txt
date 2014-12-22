@@ -5,19 +5,12 @@
 * M Komisji, gdzie 0 < M < 10000
 * 1 Raport
 
-I typ połączenia
-Serwer <---ipc_msg---> Komisja
 
-II typ połączenia
-Serwer <---ipc_msg---> Raport
-
-
-===== I prototyp systemu: =====
-Pytania i zagadnienia:
-* ile ma być kolejek?
+======= I prototyp systemu: =======
 * Zrozumieć mechanizm kolejek
-
-
+Ma być jedna albo dwie kolejki. Na początku struktury danych 
+jest stosowny "long mesg_type" który mówi do kogo i od kogo jest
+wiadomość
 Funkcjonalności serwera
 1) Tworzy odpowiednią liczbę kolejek
 2) Odbiera komunikaty od klientów
@@ -28,7 +21,53 @@ Funkcjonalność klienta
 2) Odbiera komunikat potwierdzający od serwera
 
 
-===== Dalsze funkcjonalności w kolejnych iteracjach =====
+====== Dalsze funkcjonalności w kolejnych iteracjach ======
+Dalsze pytania:
+
+* Pomysł:
+
+Druga __komisja__ do komunikacji serwera z Komisjami
+Trzecia analogiczna do komunikacji serwera z Raportem
+
+* Pomysł na protokół komunikacyjny
+1) jakie mogą być rodzaje message'y w systemie?
+================================================================================
+            opis             |     od      |       do       |   typ   | nr kol |
+--------------------------------------------------------------------------------
+ Komisja prosi o utworzenie  |   Komisja   |     Serwer     |         |   1    |
+ nowego wątku osbsługującego |             | (główny wątek) |         |        |
+--------------------------------------------------------------------------------
+ Raport prosi o utworzenie   |   Raport    |     Serwer     |         |   1    |
+ wątku obsługującego         |             | (główny wątek) |         |        |
+--------------------------------------------------------------------------------
+ Raport prosi o dane lub     |   Raport    |     Serwer     |         |   2    |
+ prosi o zamknięcie wątku    |             | (specjalista)  |         |        |
+--------------------------------------------------------------------------------
+ Raport otrzymuje informacje |   Serwer    |    Raport      |         |   2    |
+ raportowe                   |(specjalista)|                |         |        |
+--------------------------------------------------------------------------------
+ Komisja dostaje potwierdze- |   Serwer    |    Komisja     |         | 3 out  |
+ nie utworzenia wątku obsługi|(specjalista)|                |         |        |
+--------------------------------------------------------------------------------
+ Komisja przesyła swoje dane |   Komisja   |     Serwer     |         | 3 in   |
+ po kawałku                  |             | (specjalista)  |         |        |
+--------------------------------------------------------------------------------
+ Komisja przesyła komunikat  |   Komisja   |     Serwer     |         | 3 in   |
+ o końcu danych              |             | (specjalista)  |         |        |
+--------------------------------------------------------------------------------
+ Komisja dostaje potwierdze- |   Serwer    |    Komisja     |         | 3 out  |
+ nie otrzymania danych       |(specjalista)|                |         |        |
+================================================================================
+
+Potrzebne kolejki:
+ 1)  Kolejka główna wejściowa do serwera (wiadomości typu 1,2)
+ 2)  Kolejka raportowa
+ 3 in)  Kolejka komisyjna
+ 3 out)  Kolejka komisyjna
+
+
 Serwer:
 * obsługa SIGKILL (zwolnić zasoby systemowe) itp itd
+* inicjalizacja i zarządzanie stosownym pakietem danych
+* obsługa ochrony obrazu danych
 
