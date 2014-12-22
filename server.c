@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -18,6 +19,11 @@
 /* TO-DOs
  *  -> make error checking for pthread functions
  *  -> attr should be array!!
+ *  -> test, test, test
+ *  -> remove debug codez
+ *  -> improve style? indents, line length
+ *  -> magic constants here and there
+ *  -> komisja ma wypisywać rzeczy na stdout
  */
 
 /* globals */
@@ -172,10 +178,29 @@ void *serve_committee(void *d) {
     pthread_exit(NULL);
 }
 
+int sum_list(int l_no) {
+    /* inside-mutex function */
+    int i, sum = 0;
+    for (i = 1; i < MAX_CANDIDATES; i++)
+        sum += result_table[l_no][i];
+    return sum;
+};
+
+void debug_print() {
+    int i, j;
+    for (j = 0; j < MAX_LIST; j++) {
+        for (i = 0; i < MAX_CANDIDATES; i++) 
+            printf("%d ", result_table[j][i]);
+        printf("\n");
+    }
+    fflush(stdout);
+}
+
 void *serve_report(void *data) {
     if (DEBUG)
         printf("spawned handler for report \n");
     /* initalize data */
+    int l;
     Mesg mesg;
     /* confirm access to handler*/
     mesg.mesg_type = 2;
@@ -202,17 +227,66 @@ void *serve_report(void *data) {
         syserr("msgsnd in server committee handler thread");
 
     /* get info which list's data is needed */
-    int com_no;
-    if ((l = msgrcv(rep_qid, &mesg, sizeof(mesg.data), 2, 0)) <= 0)
+    int list_no, req_list_no;
+    if ((l = msgrcv(report_qid, &mesg, sizeof(mesg.data), 7, 0)) <= 0)
         syserr("msgrcv in report");
-    com_no = mesg.data[0];
+    req_list_no = mesg.data[0];
+    assert(req_list_no <= MAX_LIST);
+    if (DEBUG)
+        printf("got need for list no %d\n", req_list_no);
 
-    if (com_no) {
-        /* just one list needed */
-    } else {
-        /* all list data needed */
+    for (list_no = 1; list_no < MAX_LIST; list_no++ ) {
+        if ((req_list_no == 0) || (req_list_no == list_no))  {
+            /* send list_no and sum of list's votes*/
+            mesg.mesg_type = 5;
+            mesg.data[0] =  list_no;
+            mesg.data[1] =  sum_list(list_no);
+            if (msgsnd(report_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
+                syserr("msgsnd in server committee handler thread");
+            /* receive confirmation */
+            if ((l = msgrcv(report_qid, &mesg, sizeof(mesg.data), 1, 0)) <= 0)
+                syserr("msgrcv in report");
+            int i;
+            for (i = 1; i < MAX_CANDIDATES; i++) {
+                /* send candidates result */
+                mesg.mesg_type = 6;
+                mesg.data[0] =  1; /* list continues*/
+                mesg.data[1] =  result_table[list_no][i];
+                if (msgsnd(report_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
+                    syserr("msgsnd in server committee handler thread");
+                /* receive confirmation */
+                if ((l = msgrcv(report_qid, &mesg, sizeof(mesg.data), 1, 0)) <= 0)
+                    syserr("msgrcv in report");
+            }
+            mesg.mesg_type = 6;
+            mesg.data[0] =  13; /* end of list message */
+            if (msgsnd(report_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
+                syserr("msgsnd in server committee handler thread");
+            /* receive confirmation */
+            if ((l = msgrcv(report_qid, &mesg, sizeof(mesg.data), 1, 0)) <= 0)
+                syserr("msgrcv in report");
+        }
+        if (list_no + 1 < MAX_LIST && req_list_no ==0) {
+            /* more lists will be sent */
+            mesg.mesg_type = 6;
+            mesg.data[0] =  14; /* more data message */
+            if (msgsnd(report_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
+                syserr("msgsnd in server committee handler thread");
+            /* receive confirmation */
+            if ((l = msgrcv(report_qid, &mesg, sizeof(mesg.data), 1, 0)) <= 0)
+                syserr("msgrcv in report");
+        }
     }
-
+    /* no more lists to send */
+    /* send end of everything message */
+    mesg.mesg_type = 6;
+    mesg.data[0] =  17;
+    if (msgsnd(report_qid, (char *) &mesg, sizeof(mesg.data), 0) != 0)
+        syserr("msgsnd in server committee handler thread");
+    /* receive confirmation */
+    if ((l = msgrcv(report_qid, &mesg, sizeof(mesg.data), 1, 0)) <= 0)
+        syserr("msgrcv in report");
+    
     /* end protocol */
     /* allow creation of new handlers */
     pthread_mutex_lock(&do_not_let_new_in.mtx);
@@ -247,6 +321,9 @@ int main()
     if (signal(SIGINT, exit_gracefully) == SIG_ERR)
         syserr("procedure signal: in setting up process exiting procedure");
 
+    if (signal(SIGABRT, exit_gracefully) == SIG_ERR)
+        syserr("procedure signal: in setting up process exiting procedure");
+
     if (DEBUG)
         printf("server up and accepting requests \n");
 
@@ -255,7 +332,6 @@ int main()
         syserr("msgget in creating main request queue");
     if ((report_qid = msgget(REPORT_Q, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
         syserr("msgget in creating main request queue");
-
     if ((comin_qid = msgget(COMMITTEE_Q_IN, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
         syserr("msgget in creating main request queue");
     if ((comout_qid = msgget(COMMITTEE_OUT_Q,  0666 | IPC_CREAT | IPC_EXCL)) == -1)
@@ -326,8 +402,8 @@ int main()
                 pthread_cond_wait( &how_many_clients_in.cnd,
                                    &how_many_clients_in.mtx);
             /* this _single_ main thread hanging on this conditional 
-             * will be signaled by exiting clients. The wait 
-             * is finsihed because do_not_let_new_in is not allowing 
+             * will be signaled by exiting clients. The wait is
+             * always finite because do_not_let_new_in is not allowing 
              * new committee handlers  */
             pthread_mutex_unlock(&how_many_clients_in.mtx);
             if ((err = pthread_attr_init(&attr)) != 0)
